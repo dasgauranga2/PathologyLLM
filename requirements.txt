@@ -1,0 +1,7 @@
+# conda create --name gemma python=3.10
+# conda activate gemma
+torch==2.6.0
+transformers==4.55.0
+peft==0.17.0
+trl==0.19.1
+datasets==4.0.0
