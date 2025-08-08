@@ -2,7 +2,8 @@ from typing import Any, cast
 from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig
-from datasets import IterableDataset, Features, load_dataset
+from datasets import load_dataset
+import os
 
 # model id
 model_id = "google/gemma-3-4b-it"
@@ -11,6 +12,9 @@ model = Gemma3ForConditionalGeneration.from_pretrained(
     model_id, device_map="auto"
 )
 model.config.use_cache = False  # disable caching for training
+
+# use wandb for monitoring metrics with project name 'VLM_DPO'
+os.environ["WANDB_PROJECT"] = "PATH_VQA"
 
 # load model processor
 processor = AutoProcessor.from_pretrained(model_id, padding_side="right")
@@ -68,8 +72,8 @@ def collate_fn(examples):
 # setup LoRA config
 # important if GPU resources are limited
 lora_config = LoraConfig(
-    r=8,
-    lora_alpha=16,
+    r=16,
+    lora_alpha=32,
     lora_dropout=0.1,
     target_modules=["q_proj", "v_proj"],
     bias="none",
@@ -83,11 +87,12 @@ training_args = SFTConfig(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,
     learning_rate=2e-4,
-    logging_steps=50,
+    logging_steps=10,
     save_strategy="epoch",
-    save_total_limit=1, # keep only the latest one
+    save_total_limit=2, # keep only the latest one
     #save_steps=25,
-    #report_to="tensorboard",
+    report_to="wandb",
+    run_name="gemma3",
     group_by_length=False,
     remove_unused_columns=False,
     dataset_kwargs = {"skip_prepare_dataset": True},
