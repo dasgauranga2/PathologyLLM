@@ -25,6 +25,7 @@ processor.tokenizer.padding_side = "right"
 train_data = load_dataset("flaviagiammarino/path-vqa", split="train")
 #train_data = train_data.select(range(1000))
 print(train_data[0])
+val_data = load_dataset("flaviagiammarino/path-vqa", split="validation")
 
 # format each data sample into a format for gemma 3 processor
 def format_example(example):
@@ -49,6 +50,7 @@ def format_example(example):
 
 # format the dataset
 train_ds = train_data.map(format_example)
+val_ds = val_data.map(format_example)
 
 # collate function
 # combine list of data points to create a batch of input data
@@ -72,8 +74,8 @@ def collate_fn(examples):
 # setup LoRA config
 # important if GPU resources are limited
 lora_config = LoraConfig(
-    r=16,
-    lora_alpha=32,
+    r=32,
+    lora_alpha=64,
     lora_dropout=0.1,
     target_modules=["q_proj", "v_proj"],
     bias="none",
@@ -85,10 +87,13 @@ training_args = SFTConfig(
     output_dir="checkpoint/",
     num_train_epochs=4,
     per_device_train_batch_size=1,
+    per_device_eval_batch_size=1,
     gradient_accumulation_steps=8,
     learning_rate=2e-4,
     logging_steps=10,
     save_strategy="epoch",
+    eval_strategy="steps",
+    eval_steps=500,
     save_total_limit=2, # keep only the latest one
     #save_steps=25,
     report_to="wandb",
@@ -103,7 +108,8 @@ training_args = SFTConfig(
 # trainer class
 trainer = SFTTrainer(
     model=model,
-    train_dataset=cast(Any, train_ds),
+    train_dataset=train_ds,
+    eval_dataset=val_ds,
     peft_config=lora_config,
     args=training_args,
     data_collator=collate_fn,
